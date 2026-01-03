@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Add Customer{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg rounded border-gray-400">
+    <div class="card-header d-flex justify-content-between align-items-center border-bottom-gray-400">
+        <h3 class="mb-0 text-uppercase fw-bold flex-grow-1 text-center">Add Customer</h3>
+        <a href="{% url 'frontend:customer_list' %}" class="btn btn-dark d-flex align-items-center gap-2 px-2 py-1">
+            <i class="bi bi-arrow-left fs-5"></i>
+        </a>
+    </div>
+
+    <div class="card-body p-3">
+        <form id="customer_form" novalidate>
+            {% csrf_token %}
+            <!-- Customer Name -->
+            <div class="mb-3">
+                <label for="customer_name" class="form-label">Customer Name</label>
+                <input type="text" class="form-control" id="customer_name" name="customer_name"
+                    placeholder="Enter Customer Name" required>
+            </div>
+
+            <!-- Customer Addresses -->
+            <div id="customer-addresses-wrapper" class="mt-4">
+                <div class="customer-address-row row g-3 mb-2 align-items-start">
+                    <div class="col-md-8">
+                        <label class="form-label">Address</label>
+                        <input type="text" class="form-control address" name="address" placeholder="Enter Address"
+                            required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Mobile</label>
+                        <input type="tel" class="form-control mobile" name="mobile" placeholder="Enter Mobile Number"
+                            pattern="^(?:\+91|0)?[6-9][0-9]{9}$"
+                            oninput="this.value=this.value.replace(/[^0-9+]/g,'');if(!/^(?:\+91|0)?[6-9][0-9]{0,9}$/.test(this.value)) this.value=this.value.slice(0,-1);"
+                            required>
+                    </div>
+                    <div class="col-md-1" style="padding-top: 32px;">
+                        <button class="btn btn-sm btn-dark plus-x p-0" type="button">
+                            <span style="font-size:34px; line-height:34px;">＋</span>
+                        </button>
+                        <button class="btn btn-sm btn-dark minus-x py-0 px-1 disabled" type="button">
+                            <span style="font-size:34px; line-height:34px;">−</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <a href="{% url 'frontend:customer_list' %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-dark">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleFirstMinus() {
+        const rows = $(".customer-address-row");
+        rows.first().find(".minus-x")
+            .toggleClass("disabled", rows.length === 1);
+    }
+
+    $(function () {
+        // Add row
+        $(document).on("click", ".plus-x", function () {
+            const html = `
+                <div class="customer-address-row row g-3 mb-2 align-items-start">
+                    <div class="col-md-8">
+                        <label class="form-label">Address</label>
+                        <input type="text" class="form-control address" name="address" placeholder="Enter Address" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Mobile</label>
+                        <input type="tel" class="form-control mobile" name="mobile" placeholder="Enter Mobile Number"
+                               pattern="^(?:\\+91|0)?[6-9][0-9]{9}$"
+                               oninput="this.value=this.value.replace(/[^0-9+]/g,'');if(!/^(?:\\+91|0)?[6-9][0-9]{0,9}$/.test(this.value)) this.value=this.value.slice(0,-1);"
+                               required>
+                    </div>
+                    <div class="col-md-1" style="padding-top:32px;">
+                        <button class="btn btn-sm btn-dark plus-x p-0" type="button">
+                            <span style="font-size:34px; line-height:34px;">＋</span>
+                        </button>
+                        <button class="btn btn-sm btn-dark minus-x py-0 px-1" type="button">
+                            <span style="font-size:34px; line-height:34px;">−</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            $(html).appendTo("#customer-addresses-wrapper");
+            toggleFirstMinus();
+        });
+
+        // Remove row
+        $(document).on("click", ".minus-x", function () {
+            $(this).closest(".customer-address-row").remove();
+            toggleFirstMinus();
+        });
+
+        // Submit form
+        $("#customer_form").on("submit", function (e) {
+            e.preventDefault();
+            const form = this;
+            if (!form.checkValidity()) { return alert("Please fill all fields correctly."); }
+
+            // First AJAX: Create Customer
+            const customerData = { name: $("#customer_name").val() };
+            $.ajax({
+                type: "POST",
+                url: "/api/customer/",
+                data: JSON.stringify(customerData),
+                contentType: "application/json",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" }
+            }).done(customer => {
+                // Second AJAX: Create CustomerAddresses
+                const addresses = $(".customer-address-row").map((_, row) => {
+                    row = $(row);
+                    return {
+                        customer: customer.id,
+                        address: row.find(".address").val(),
+                        mobile: row.find(".mobile").val()
+                    };
+                }).get();
+
+                const requests = addresses.map(addr =>
+                    $.ajax({
+                        type: "POST",
+                        url: "/api/customer-address/",
+                        data: JSON.stringify(addr),
+                        contentType: "application/json",
+                        headers: { "X-CSRFToken": "{{ csrf_token }}" }
+                    }).fail(() => console.warn("Failed row:", addr))
+                );
+
+                $.when(...requests).always(() => {
+                    window.location.href = "{% url 'frontend:customer_list' %}";
+                });
+            }).fail(() => alert("Failed to create customer."));
+        });
+    });
+</script>
+{% endblock %}

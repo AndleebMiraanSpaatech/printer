@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% load static master_tags %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/add.css' %}">
+{% endblock %}
+
+{% block title %}Add Rental Return{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg rounded border-gray-400">
+    <div class="card-header d-flex justify-content-between align-items-center border-bottom-gray-400">
+        <h3 class="mb-0 text-uppercase fw-bold flex-grow-1 text-center">Add Rental Return</h3>
+        <a href="{% url 'frontend:rental_return_list' %}"
+            class="btn btn-dark d-flex align-items-center gap-2 px-2 py-1">
+            <i class="bi bi-arrow-left fs-5"></i>
+        </a>
+    </div>
+
+    <div class="card-body p-3">
+        <form id="rental_return_form" novalidate>
+            {% csrf_token %}
+            <!-- First part: Rental Return Form -->
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="order_date" class="form-label">Challan Date</label>
+                    <input type="text" class="form-control flatpickr" id="challan_date" name="challan_date"
+                        placeholder="Select challan date" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="order_no" class="form-label">Order No</label>
+                    <input type="text" class="form-control" id="order_no" name="order_no" placeholder="Enter Order no">
+                </div>
+                <div class="col-md-4">
+                    <label for="order_date" class="form-label">Order Date</label>
+                    <input type="text" class="form-control flatpickr" id="order_date" name="order_date"
+                        placeholder="Select order date">
+                </div>
+                <div class="col-md-4">
+                    <label for="store" class="form-label">Store</label>
+                    <select class="form-control" id="store" name="store" required data-choices
+                        data-placeholder="Select Store">
+                        {% for store in stores %}
+                        <option value="{{ store.id }}">{{ store.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="customer" class="form-label">Customer</label>
+                    <select class="form-control" id="customer" name="customer" required>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="customer" class="form-label">Customer Address</label>
+                    <select class="form-control" id="customer_address" name="customer_address" required></select>
+                </div>
+            </div>
+
+            <div id="return-table-wrapper" class="mt-4 d-none">
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle text-center mb-0">
+                        <thead class="table-secondary text-uppercase small border-gray-400">
+                            <tr>
+                                <th style="width: 50%">Printer Model</th>
+                                <th style="width: 20%">Printer Unit</th>
+                                <th style="width: 30%">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="return-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <a href="{% url 'frontend:rental_return_list' %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-dark">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(function () {
+
+        /* ---------- LOAD CUSTOMERS (ACTIVE RENTALS ONLY) ---------- */
+        const customers = getCustomModel("customer", {
+            "addresses__rented_printer_units__status": "RENTED"
+        });
+
+        customers.forEach(c => {
+            $("#customer").append(
+                `<option value="${c.id}">${c.name}</option>`
+            );
+        });
+
+        const customerChoices = new Choices("#customer", {
+            searchEnabled: true,
+            itemSelectText: "",
+            placeholder: true,
+            placeholderValue: "Select Customer",
+            shouldSort: false,
+        });
+
+        /* ---------- CUSTOMER → ADDRESS ---------- */
+        let addressChoices = null;
+
+        $("#customer").on("change", function () {
+            const customerId = this.value;
+
+            $("#return-table-body").empty();
+            $("#return-table-wrapper").addClass("d-none");
+
+            if (addressChoices) {
+                addressChoices.destroy();
+                addressChoices = null;
+            }
+
+            $("#customer_address")
+                .empty()
+                .append('<option value="">Select Address</option>');
+
+            if (!customerId) return;
+
+            const addresses = getCustomModel("customer-address", {
+                customer_id: customerId,
+                "rented_printer_units__status": "RENTED"
+            });
+
+            addresses.forEach(a => {
+                $("#customer_address").append(
+                    `<option value="${a.id}">${a.address}</option>`
+                );
+            });
+
+            addressChoices = new Choices("#customer_address", {
+                searchEnabled: true,
+                itemSelectText: "",
+                placeholder: true,
+                placeholderValue: "Select Address",
+                shouldSort: false,
+            });
+        });
+
+        /* ---------- ADDRESS → RETURN TABLE ---------- */
+        $("#customer_address").on("change", function () {
+            const addressId = this.value;
+
+            $("#return-table-body").empty();
+            $("#return-table-wrapper").addClass("d-none");
+
+            if (!addressId) return;
+
+            const units = getCustomModel("printer-unit", {
+                customer_address_id: addressId,
+                status: "RENTED"
+            });
+
+            if (!units.length) return;
+
+            renderReturnTable(units);
+        });
+
+        /* ---------- RENDER TABLE ---------- */
+        function renderReturnTable(units) {
+            const tbody = $("#return-table-body");
+            tbody.empty();
+
+            // Group by printer model
+            const grouped = {};
+            units.forEach(u => {
+                const modelId = u.printer_model.id;
+                if (!grouped[modelId]) {
+                    grouped[modelId] = {
+                        model: u.printer_model.name,
+                        units: []
+                    };
+                }
+                grouped[modelId].units.push(u);
+            });
+
+            Object.values(grouped).forEach(group => {
+                group.units.forEach((unit, index) => {
+                    const tr = $("<tr>");
+
+                    if (index === 0) {
+                        tr.append(`
+                        <td rowspan="${group.units.length}"
+                            class="printer-model-cell align-middle text-center">
+                            ${group.model}
+                        </td>
+                    `);
+                    }
+
+                    tr.append(`
+                    <td class="printer-unit-cell align-middle text-center">
+                        ${unit.serial_number || `Unit #${unit.id}`}
+                    </td>
+                    <td class="action-cell align-middle text-center">
+                        <div class="d-flex align-items-center justify-content-center" style="gap: 2rem;">
+                            <div class="form-check">
+                                <input class="form-check-input return-checkbox"
+                                       type="checkbox"
+                                       data-unit-id="${unit.id}">
+                                <label class="form-check-label">Return</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input scrap-checkbox"
+                                       type="checkbox"
+                                       disabled>
+                                <label class="form-check-label">Scrap</label>
+                            </div>
+                        </div>
+                    </td>
+                `);
+
+                    tbody.append(tr);
+                });
+            });
+
+            $("#return-table-wrapper").removeClass("d-none");
+        }
+
+        /* ---------- CHECKBOX RULES ---------- */
+        $(document).on("change", ".return-checkbox", function () {
+            const scrap = $(this).closest("td").find(".scrap-checkbox");
+
+            if (this.checked) {
+                scrap.prop("disabled", false);
+            } else {
+                scrap.prop("checked", false).prop("disabled", true);
+            }
+        });
+
+        /* -------------------- SUBMIT FORM -------------------- */
+        $("#rental_return_form").on("submit", function (e) {
+            e.preventDefault();
+
+            const form = this;
+            if (!form.checkValidity()) {
+                alert("Please fill all required fields.");
+                return;
+            }
+
+            /* ---------- COLLECT SELECTED UNITS FIRST ---------- */
+            const units = $(".return-checkbox:checked").map(function () {
+                const td = $(this).closest("td");
+                return {
+                    printer_unit: $(this).data("unit-id"),
+                    scrapped: td.find(".scrap-checkbox").is(":checked")
+                };
+            }).get();
+
+            if (!units.length) {
+                alert("Please select at least one unit to return.");
+                return;
+            }
+
+            /* ---------- CREATE RENTAL RETURN ---------- */
+            const returnData = {
+                challan_date: $("#challan_date").val(),
+                store: $("#store").val(),
+                customer_address: $("#customer_address").val(),
+                ...($("#order_no").val().trim() && { order_no: $("#order_no").val().trim() }),
+                ...($("#order_date").val().trim() && { order_date: $("#order_date").val().trim() }),
+            };
+
+            $.ajax({
+                type: "POST",
+                url: "/api/rental-return/",
+                data: JSON.stringify(returnData),
+                contentType: "application/json",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+            })
+                .done(rentalReturn => {
+
+                    /* ---------- SAVE RETURN UNITS ---------- */
+                    const requests = units.map(unit =>
+                        $.ajax({
+                            type: "POST",
+                            url: "/api/rental-return-unit/",
+                            data: JSON.stringify({
+                                ...unit,
+                                rental_return: rentalReturn.id
+                            }),
+                            contentType: "application/json",
+                            headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                        }).fail(() => console.warn("Failed unit:", unit))
+                    );
+
+                    /* ---------- REDIRECT AFTER ALL ---------- */
+                    $.when(...requests).always(() => {
+                        window.location.href = "{% url 'frontend:rental_return_list' %}";
+                    });
+                })
+                .fail(() => alert("Failed to create rental return."));
+        });
+
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static master_tags %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/list.css' %}">
+{% endblock %}
+
+{% block title %}Customers{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg rounded border-gray-400">
+    <div class="card-header d-flex justify-content-between align-items-center border-bottom-gray-400">
+        <h3 class="mb-0 text-uppercase fw-bold flex-grow-1 text-center">Customers</h3>
+        <a href="{% url 'frontend:customer_add' %}" class="btn btn-dark d-flex align-items-center gap-2 px-2 py-1">
+            <i class="bi bi-plus-lg fs-5"></i>
+        </a>
+    </div>
+
+    <div class="card-body p-3">
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle text-center mb-0">
+                <thead class="table-secondary text-uppercase small border-gray-400">
+                    <tr class="align-middle">
+                        <th style="width:60px">S. No</th>
+                        <th>Customer Name</th>
+                        <th>Address</th>
+                        <th>Mobile</th>
+                        <th style="width:120px">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in objects %}
+                        {% with customer.addresses.all|length as addr_count %}
+                            {% if addr_count == 0 %}
+                            <tr>
+                                <td>{{ forloop.counter|serial_no:page_no }}</td>
+                                <td>{{ customer.name }}</td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td>
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <a href="{% url 'frontend:customer_edit' %}?id={{ customer.id }}" class="btn btn-outline-secondary btn-sm">
+                                            <i class="bi bi-pencil-fill fs-6"></i>
+                                        </a>
+                                        <button class="btn btn-outline-dark btn-sm delete-btn" data-id="{{ customer.id }}"
+                                            data-model-name="Customer" data-model-url="customer" data-csrf="{{ csrf_token }}">
+                                            <i class="bi bi-trash3-fill fs-6"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                                {% for address in customer.addresses.all %}
+                                    <tr>
+                                        {% if forloop.first %}
+                                            <td rowspan="{{ addr_count }}" class="align-middle">{{ forloop.parentloop.counter|serial_no:page_no }}</td>
+                                            <td rowspan="{{ addr_count }}" class="align-middle">{{ customer.name }}</td>
+                                        {% endif %}
+                                        <td>{{ address.address }}</td>
+                                        <td>{{ address.mobile }}</td>
+                                        {% if forloop.first %}
+                                            <td rowspan="{{ addr_count }}" class="align-middle">
+                                                <div class="d-flex justify-content-center gap-2">
+                                                    <a href="{% url 'frontend:customer_edit' %}?id={{ customer.id }}" class="btn btn-outline-secondary btn-sm">
+                                                        <i class="bi bi-pencil-fill fs-6"></i>
+                                                    </a>
+                                                    <button class="btn btn-outline-dark btn-sm delete-btn" data-id="{{ customer.id }}"
+                                                        data-model-name="Customer" data-model-url="customer" data-csrf="{{ csrf_token }}">
+                                                        <i class="bi bi-trash3-fill fs-6"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        {% endif %}
+                                    </tr>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No customers found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3 d-flex justify-content-center pagination-wrapper">
+            <ul class="pagination mb-0"></ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(function () {
+        const pageNo = Number(new URLSearchParams(window.location.search).get("page_no")) || 1;
+        const count = Number("{{ count }}");
+        pagination(pageNo, count);
+    });
+</script>
+{% endblock %}

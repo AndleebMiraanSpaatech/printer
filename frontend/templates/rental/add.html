@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% load static master_tags %}
+
+{% block title %}Add Rental{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg rounded border-gray-400">
+    <div class="card-header d-flex justify-content-between align-items-center border-bottom-gray-400">
+        <h3 class="mb-0 text-uppercase fw-bold flex-grow-1 text-center">Add Rental</h3>
+        <a href="{% url 'frontend:rental_list' %}" class="btn btn-dark d-flex align-items-center gap-2 px-2 py-1">
+            <i class="bi bi-arrow-left fs-5"></i>
+        </a>
+    </div>
+
+    <div class="card-body p-3">
+        <form id="rental_form" novalidate>
+            {% csrf_token %}
+            <!-- First part: Rental Form -->
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="challan_date" class="form-label">Challan Date</label>
+                    <input type="text" class="form-control flatpickr" id="challan_date" name="challan_date"
+                        placeholder="Select challan date" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="order_no" class="form-label">Order No</label>
+                    <input type="text" class="form-control" id="order_no" name="order_no" placeholder="Enter Order no"
+                        required>
+                </div>
+                <div class="col-md-4">
+                    <label for="order_date" class="form-label">Order Date</label>
+                    <input type="text" class="form-control flatpickr" id="order_date" name="order_date"
+                        placeholder="Select order date" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="store" class="form-label">Store</label>
+                    <select class="form-control" id="store" name="store" required data-choices
+                        data-placeholder="Select Store">
+                        {% for store in stores %}
+                        <option value="{{ store.id }}">{{ store.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="customer" class="form-label">Customer</label>
+                    <select class="form-control" id="customer" name="customer" required data-choices
+                        data-placeholder="Select Customer">
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="customer_address" class="form-label">Customer Address</label>
+                    <select class="form-control" id="customer_address" name="customer_address" required></select>
+                </div>
+            </div>
+
+            <!-- Second part: Rental Items Form -->
+            <div id="rental-items-wrapper" class="mt-4">
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <a href="{% url 'frontend:rental_list' %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-dark">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(function () {
+
+        const addrChoices = new Choices($('#customer_address')[0], {
+            searchEnabled: true, itemSelectText: "", placeholder: true, placeholderValue: "Select Customer Address", shouldSort: false,
+        });
+
+        $('#customer').on('change', function () {
+            const addresses = getCustomModel("customer-address", { customer_id: +this.value });
+            addrChoices.removeActiveItems(); addrChoices.clearChoices();
+            addrChoices.setChoices(addresses.map(({ id, address }) => ({ value: id, label: address })), 'value', 'label', false);
+        });
+
+        var rowCount = 0, selected_printer_models = [], printerModels = null, dropdownWeakMap = new WeakMap(), unitDropdownWeakMap = new WeakMap();
+
+        function appendRentalUnitRow() {
+            const rowSelectDomElement = $('#rental-items-wrapper').append(
+                `<div class="rental-item-row row g-3 mb-2 align-items-start">
+                    <div class="col-md-6">
+                        <label class="form-label">Printer Model</label>
+                        <select class="form-control printer_model" name="printer_model" required></select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Printer Unit</label>
+                        <select class="form-control printer_unit" name="printer_unit" multiple required></select>
+                    </div>
+                    <div class="col-md-1" style="padding-top: 32px;">
+                        <button class="btn btn-sm btn-dark plus-x p-0" type="button">
+                            <span style="font-size:34px; line-height:34px;">＋</span>
+                        </button>
+                        <button class="btn btn-sm btn-dark minus-x py-0 px-1" type="button">
+                            <span style="font-size:34px; line-height:34px;">−</span>
+                        </button>
+                    </div>
+                </div>`
+            ).children('.rental-item-row').last().find('.printer_model')[0];
+            toggleFirstMinus();
+            let choices = new Choices(rowSelectDomElement, {
+                searchEnabled: true, itemSelectText: "", shouldSort: false,
+                placeholder: true, placeholderValue: "Select Printer Model",
+            })
+            choices.setChoices(printerModels, 'value', 'label', true);
+            dropdownWeakMap.set(rowSelectDomElement, choices);
+            const unitSelect = rowSelectDomElement.closest('.rental-item-row').querySelector('.printer_unit');
+            unitDropdownWeakMap.set(unitSelect,new Choices(unitSelect, {
+                searchEnabled: false, itemSelectText: "", shouldSort: false, removeItemButton: true,
+                placeholder: true, placeholderValue: "Select Printer Unit",
+            }));
+        }
+
+        const toggleFirstMinus = () => $('.rental-item-row:first .minus-x').prop('disabled', $('.rental-item-row').length <= 1);
+
+        $('#store').on('change', function () {
+            $('#rental-items-wrapper').empty();
+            printerModels = getCustomModel("printer-model", { "units__store_id": this.value }).map(
+                item => ({value: item.id,label: item.name}));
+            appendRentalUnitRow();
+        });
+
+        $('#rental-items-wrapper').on('click', '.plus-x', function () {
+            appendRentalUnitRow();
+        });
+
+        $('#rental-items-wrapper').on('click', '.minus-x', function () {
+            const row = $(this).closest('.rental-item-row');
+            const modelSelect = row.find('.printer_model')[0];
+            const selected = dropdownWeakMap.get(modelSelect).getValue();
+            if (selected && selected.value) {
+                const selectedModel = { value: selected.value, label: selected.label };
+                selected_printer_models = selected_printer_models.filter(m => m.value !== selectedModel.value);
+                printerModels.push(selectedModel);
+                $('.printer_model').each((_, s) => dropdownWeakMap.get(s).setChoices(printerModels, 'value', 'label', true));
+            }            
+            row.remove();
+            toggleFirstMinus();
+        });
+
+        $('#rental-items-wrapper').on('change', '.printer_model', function () {
+            const choicesInstance = dropdownWeakMap.get(this);
+            const choicesInstanceChoices = choicesInstance._store._state.choices
+            const previous_selected_printer_model = selected_printer_models.find(s => choicesInstanceChoices.some(c => c.value == s.value)) || null;
+            if (previous_selected_printer_model){
+                selected_printer_models.splice(selected_printer_models.findIndex(s => s.value === previous_selected_printer_model.value), 1);
+                printerModels.push(previous_selected_printer_model)
+            }
+            const { value, label } = choicesInstance.getValue(), selected_printer_model = { value, label };
+            selected_printer_models.push(selected_printer_model)
+            printerModels.splice(printerModels.map(x=>x.value).indexOf(selected_printer_model.value),1);
+            $('.printer_model').each((_,s)=>dropdownWeakMap.get(s).setChoices(printerModels,'value','label',true));
+            const printer_units = getCustomModel("printer-unit",{store_id:Number($('#store').val()),printer_model_id:Number($(this).val())}
+                ).map(item => ({value: item.id,label: item.serial_number}));
+            unitDropdownWeakMap.get(this.closest('.rental-item-row').querySelector('.printer_unit')).setChoices(
+                printer_units, 'value', 'label', true
+            );
+        });
+
+        $("#rental_form").on("submit", function (e) {
+            e.preventDefault();
+            if (!this.checkValidity()) return alert("Please fill all required fields.");
+            const rentalData = ["challan_date","order_no","order_date","store","customer","customer_address"]
+                .reduce((acc,id) => (acc[id] = $("#" + id).val(), acc), {});
+            $.ajax({
+                type: "POST",
+                url: "/api/rental/",
+                data: JSON.stringify(rentalData),
+                contentType: "application/json",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" }
+            }).done(rental => {
+                const units = $(".rental-item-row").map((_, row) => {
+                    row = $(row);
+                    const modelId = row.find(".printer_model").val();
+                    return (row.find(".printer_unit").val() || []).map(id => ({
+                        rental: rental.id, printer_model: modelId, printer_unit: id
+                    }));
+                }).get().flat();
+                $.when(...units.map(unit => $.ajax({
+                    type: "POST",
+                    url: "/api/rental-unit/",
+                    data: JSON.stringify(unit),
+                    contentType: "application/json",
+                    headers: { "X-CSRFToken": "{{ csrf_token }}" }
+                }))).always(() => window.location.href = "{% url 'frontend:rental_list' %}");
+            }).fail(() => alert("Failed to create rental."));
+        });
+    });
+</script>
+{% endblock %}

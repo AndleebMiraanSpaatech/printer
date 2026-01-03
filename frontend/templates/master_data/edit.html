@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static master_tags %}
+
+{% block extra_css %}{% endblock %}
+
+{% block title %}{{ model|sentence_case }} Edit{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg rounded border-gray-400">
+    <div class="card-header d-flex justify-content-between align-items-center border-bottom-gray-400">
+        <h3 class="mb-0 text-uppercase fw-bold flex-grow-1 text-center">Edit {{ model|sentence_case }}</h3>
+        <a href="{% url 'frontend:master_data_list' model|kebab_case %}"
+            class="btn btn-dark d-flex align-items-center gap-2 px-2 py-1">
+            <i class="bi bi-arrow-left fs-5"></i>
+        </a>
+    </div>
+    <div class="card-body p-3">
+        <form id="create_form" class="ajax-form needs-validation" novalidate data-method="PATCH"
+            data-url="/api/{{ model|kebab_case }}/"
+            data-redirect="{% url 'frontend:master_data_list' model|kebab_case %}"
+            data-error-message="Error submitting {{ model|sentence_case }}." data-csrf="{{ csrf_token }}">
+            <div class="row g-3">
+                {% for field_name, queryset in foreign_keys.items %}
+                <div class="col-md-6">
+                    <label for="{{ field_name }}" class="form-label">{{ field_name|sentence_case }}</label>
+                    <select class="form-control" id="{{ field_name }}" name="{{ field_name }}" required data-choices
+                        data-placeholder="Select {{ field_name|sentence_case }}">
+                        {% for object in queryset %}
+                        <option value="{{ object.id }}" {% if object == edit_object|get_value:field_name %}selected{% endif %}>
+                            {{ object }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+
+
+                {% for field in model|normal_fields %}
+                <div class="col-md-6">
+                    <label for="{{ field.name }}" class="form-label">{{ field.name|sentence_case }}</label>
+                    {% if field.name == "mobile" %}
+                    <input type="tel" class="form-control" id="{{ field.name }}" name="{{ field.name }}"
+                        placeholder="Enter {{ field.name|sentence_case }}" pattern="^(?:\+91|0)?[6-9][0-9]{9}$"
+                        oninput="this.value = this.value.replace(/[^0-9+]/g,''); if(!/^(?:\+91|0)?[6-9][0-9]{0,9}$/.test(this.value)) this.value = this.value.slice(0,-1);"
+                        value="{{edit_object|get_value:field}}" required>
+                    {% else %}
+                    <input type="{% if field|field_class == 'EmailField' %}email{% else %}text{% endif %}"
+                        class="form-control" id="{{ field.name }}" name="{{ field.name }}"
+                        placeholder="Enter {{ field.name|sentence_case }}" value="{{edit_object|get_value:field}}"
+                        required>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <a href="{% url 'frontend:master_data_list' model|kebab_case %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-dark">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}{% endblock %}

@@ -1,0 +1,56 @@
+.border-gray-400 {
+    border: 1px solid rgba(0, 0, 0, 0.25) !important;
+}
+
+.border-bottom-gray-400 {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.25) !important;
+}
+
+.table-bordered tbody td {
+    border: 1px solid rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Pagination achromatic override */
+.pagination {
+    gap: 0; /* keep Bootstrap structure */
+}
+
+.pagination .page-item {
+    margin: 0 4px; /* GAP BETWEEN BUTTONS */
+}
+
+.pagination .page-link {
+    color: #111 !important;
+    background: linear-gradient(180deg, #e0e0e0 0%, #cfcfcf 100%) !important;
+    border: 1px solid rgba(0,0,0,0.25) !important;
+    border-radius: 8px;
+    padding: 0.3rem 0.85rem;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pagination .page-link:hover {
+    background: linear-gradient(180deg, #d4d4d4 0%, #bcbcbc 100%) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+}
+
+/* CURRENT PAGE */
+.pagination .page-item.active .page-link {
+    background: linear-gradient(180deg, #a8a8a8 0%, #8f8f8f 100%) !important;
+    color: #111 !important;
+    font-weight: 700;
+    box-shadow: inset 0 3px 6px rgba(0,0,0,0.18),
+                0 2px 6px rgba(0,0,0,0.12);
+    transform: none;
+}
+
+/* DISABLED */
+.pagination .page-item.disabled .page-link {
+    background: #f3f3f3 !important;
+    color: #999 !important;
+    box-shadow: none;
+    border-color: rgba(0,0,0,0.2) !important;
+    pointer-events: none;
+}

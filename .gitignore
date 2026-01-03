@@ -1,0 +1,45 @@
+# =========================
+# Virtual Environments
+# =========================
+venv/
+env/
+
+# =========================
+# Python cache
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================
+# Django
+# =========================
+db.sqlite3
+media/
+staticfiles/
+
+# =========================
+# Environment variables
+# =========================
+.env
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# OS / Editor junk
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# =========================
+# Project-specific files (DO NOT COMMIT)
+# =========================
+Master.txt
+Master.xml
+Printer Delivery Details(All Company).xlsx

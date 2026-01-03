@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Edit Customer{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg rounded border-gray-400">
+    <div class="card-header d-flex justify-content-between align-items-center border-bottom-gray-400">
+        <h3 class="mb-0 text-uppercase fw-bold flex-grow-1 text-center">Edit Customer</h3>
+        <a href="{% url 'frontend:customer_list' %}" class="btn btn-dark px-2 py-1">
+            <i class="bi bi-arrow-left fs-5"></i>
+        </a>
+    </div>
+
+    <div class="card-body p-3">
+        <form id="customer_form" novalidate>
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label">Customer Name</label>
+                <input type="text" class="form-control" value="{{ customer.name }}" disabled>
+            </div>
+            {% for addr in customer.addresses.all %}
+            <div class="customer-address-row row g-3 mb-2 align-items-start existing-row">
+                <div class="col-md-8">
+                    <label class="form-label">Address</label>
+                    <input type="text"
+                           class="form-control"
+                           value="{{ addr.address }}"
+                           disabled>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Mobile</label>
+                    <input type="tel"
+                           class="form-control"
+                           value="{{ addr.mobile }}"
+                           disabled>
+                </div>
+                <div class="col-md-1" style="padding-top:32px;">
+                        <button class="btn btn-sm btn-dark plus-x p-0" type="button">
+                            <span style="font-size:34px; line-height:34px;">＋</span>
+                        </button>
+                        <button class="btn btn-sm btn-dark minus-x py-0 px-1 disabled" type="button">
+                            <span style="font-size:34px; line-height:34px;">−</span>
+                        </button>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div id="customer-addresses-wrapper" class="mt-3">
+                <div class="customer-address-row row g-3 mb-2 align-items-start new-row">
+                    <div class="col-md-8">
+                        <label class="form-label">Address</label>
+                        <input type="text" class="form-control address" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Mobile</label>
+                        <input type="tel"
+                               class="form-control mobile"
+                               pattern="^(?:\+91|0)?[6-9][0-9]{9}$"
+                               oninput="this.value=this.value.replace(/[^0-9+]/g,'');
+                               if(!/^(?:\+91|0)?[6-9][0-9]{0,9}$/.test(this.value)) this.value=this.value.slice(0,-1);"
+                               required>
+                    </div>
+                    <div class="col-md-1" style="padding-top:32px;">
+                        <button class="btn btn-sm btn-dark plus-x p-0" type="button">
+                            <span style="font-size:34px; line-height:34px;">＋</span>
+                        </button>
+                        <button class="btn btn-sm btn-dark minus-x py-0 px-1 disabled" type="button">
+                            <span style="font-size:34px; line-height:34px;">−</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <a href="{% url 'frontend:customer_list' %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-dark">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleNewMinus() {
+        const rows = $(".new-row");
+        if (rows.length > 1) {
+            rows.find(".minus-x").removeClass("disabled");
+        } else {
+            rows.find(".minus-x").addClass("disabled");
+        }
+    }
+
+    $(function () {
+
+        /* ADD ONLY NEW ROWS */
+        $(document).on("click", ".new-row .plus-x", function () {
+            const html = `
+                <div class="customer-address-row row g-3 mb-2 align-items-start new-row">
+                    <div class="col-md-8">
+                        <label class="form-label">Address</label>
+                        <input type="text" class="form-control address" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Mobile</label>
+                        <input type="tel"
+                               class="form-control mobile"
+                               pattern="^(?:\\+91|0)?[6-9][0-9]{9}$"
+                               oninput="this.value=this.value.replace(/[^0-9+]/g,'');
+                               if(!/^(?:\\+91|0)?[6-9][0-9]{0,9}$/.test(this.value)) this.value=this.value.slice(0,-1);"
+                               required>
+                    </div>
+                    <div class="col-md-1" style="padding-top:32px;">
+                        <button class="btn btn-sm btn-dark plus-x p-0" type="button">
+                            <span style="font-size:34px; line-height:34px;">＋</span>
+                        </button>
+                        <button class="btn btn-sm btn-dark minus-x py-0 px-1 disabled" type="button">
+                            <span style="font-size:34px; line-height:34px;">−</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            $("#customer-addresses-wrapper").append(html);
+            toggleNewMinus();
+        });
+
+        /* REMOVE ONLY NEW ROWS */
+        $(document).on("click", ".new-row .minus-x:not(.disabled)", function () {
+            $(this).closest(".new-row").remove();
+            toggleNewMinus();
+        });
+
+        /* SUBMIT ONLY NEW ADDRESSES */
+        $("#customer_form").on("submit", function (e) {
+            e.preventDefault();
+
+            const payload = $(".new-row").map((_, row) => ({
+                customer: Number("{{ customer.id }}"),
+                address: $(row).find(".address").val(),
+                mobile: $(row).find(".mobile").val()
+            })).get();
+
+            const requests = payload.map(p =>
+                $.ajax({
+                    type: "POST",
+                    url: "/api/customer-address/",
+                    data: JSON.stringify(p),
+                    contentType: "application/json",
+                    headers: { "X-CSRFToken": "{{ csrf_token }}" }
+                })
+            );
+
+            $.when(...requests).always(() => {
+                window.location.href = "{% url 'frontend:customer_list' %}";
+            });
+        });
+
+        toggleNewMinus();
+    });
+</script>
+{% endblock %}

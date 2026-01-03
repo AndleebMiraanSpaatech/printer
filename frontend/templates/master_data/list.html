@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static master_tags %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/list.css' %}">
+{% endblock %}
+
+{% block title %}{{ model|sentence_case }} List{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg rounded border-gray-400">
+    <div class="card-header d-flex justify-content-between align-items-center border-bottom-gray-400">
+        <h3 class="mb-0 text-uppercase fw-bold flex-grow-1 text-center">{{ model|sentence_case:"plural" }}</h3>
+        <a href="{% url 'frontend:master_data_add' model|kebab_case %}"
+            class="btn btn-dark d-flex align-items-center gap-2 px-2 py-1">
+            <i class="bi bi-plus-lg fs-5"></i>
+        </a>
+    </div>
+
+    <div class="card-body p-3">
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle text-center mb-0">
+                <thead class="table-secondary text-uppercase small border-gray-400">
+                    <tr class="align-middle">
+                        <th style="width:60px">S. No</th>
+                        {% for field in model|model_fields %}
+                        <th class="align-middle">{{ field|sentence_case }}</th>
+                        {% endfor %}
+                        <th class="align-middle">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for object in objects %}
+                    <tr>
+                        <td>{{ forloop.counter|serial_no:page_no }}</td>
+                        {% for field in model|model_fields %}
+                        <td>{{ object|get_value:field }}</td>
+                        {% endfor %}
+
+                        <td>
+                            <div class="d-flex justify-content-center gap-2">
+                                <a href="{% url 'frontend:master_data_edit' model|kebab_case %}?id={{ object.id }}"
+                                    class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-pencil-fill fs-6"></i>
+                                </a>
+                                <button class="btn btn-outline-dark btn-sm delete-btn" data-id="{{ object.id }}"
+                                    data-model-name="{{ model|sentence_case }}" data-model-url="{{ model|kebab_case }}"
+                                    data-csrf="{{ csrf_token }}">
+                                    <i class="bi bi-trash3-fill fs-6"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ model|model_fields|length|add:2 }}" class="text-center">
+                            No records found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination wrapper div -->
+        <div class="mt-3 d-flex justify-content-center pagination-wrapper">
+            <ul class="pagination mb-0">
+            </ul>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(function () {
+        const pageNo = Number(new URLSearchParams(window.location.search).get("page_no")) || 1;
+        const count = Number("{{count}}")
+        pagination(pageNo, count)
+    });
+</script>
+{% endblock %}

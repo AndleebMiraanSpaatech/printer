@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/list.css' %}">
+{% endblock %}
+
+{% block title %}Inventory on Rent{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg rounded border-gray-400">
+    <div class="card-header d-flex justify-content-between align-items-center border-bottom-gray-400">
+        <h3 class="mb-0 text-uppercase fw-bold flex-grow-1 text-center">
+            Inventory on Rent
+        </h3>
+        <button id="exportExcel" type="button" class="btn btn-dark d-flex align-items-center gap-2 px-2 py-1">
+            Excel
+        </button>
+    </div>
+
+    <div class="card-body p-3">
+        <div class="table-responsive">
+            <table id="inventoryTable" class="table table-hover table-bordered align-middle text-center mb-0">
+                <thead class="table-secondary text-uppercase small border-gray-400">
+                    <tr>
+                        <th style="width:60px">S. No</th>
+                        <th>Printer Model</th>
+                        <th>Customer</th>
+                        <th>Address</th>
+                        <th>Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        {% if row.sno %}
+                        <td rowspan="{{ row.model_rowspan }}">{{ row.sno }}</td>
+                        <td rowspan="{{ row.model_rowspan }}">{{ row.model }}</td>
+                        {% endif %}
+                        {% if row.customer %}
+                        <td rowspan="{{ row.customer_rowspan }}">{{ row.customer }}</td>
+                        {% endif %}
+                        <td>{{ row.address }}</td>
+                        <td>{{ row.qty }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No rented units found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(function () {
+        $('#exportExcel').on('click', function () {
+            const excel_file = HTMLTableToExcel.table_to_book({
+                table: $('table')[0],
+                sheet: 'Inventory On Rent'
+            });
+
+            HTMLTableToExcel.download({
+                workbook: excel_file,
+                filename: 'inventory_on_rent.xlsx'
+            });
+        });
+    });
+</script>
+{% endblock %}
