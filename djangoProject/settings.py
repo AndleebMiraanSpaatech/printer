@@ -130,7 +130,17 @@ USE_TZ = False
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# URL prefix for static files
+STATIC_URL = '/static/'
+
+# During development, include the app static folder
+STATICFILES_DIRS = [
+    BASE_DIR / 'frontend' / 'static',
+]
+
+# Folder where collectstatic will copy all static files for production
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
 
 MEDIA_URL = '/media/'
 
