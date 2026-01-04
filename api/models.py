@@ -1,5 +1,5 @@
 from django.db.transaction import atomic
-from django.db.models import Model, CharField, DateField, ForeignKey, PositiveIntegerField, CASCADE, PROTECT, SET_NULL, BooleanField, Manager
+from django.db.models import Model, CharField, DateField, ForeignKey, PositiveIntegerField, CASCADE, PROTECT, SET_NULL, BooleanField, UniqueConstraint
 
 
 def generate_challan(prefix_name, seq, year):
@@ -57,7 +57,7 @@ class Customer(Model):
 
 class CustomerAddress(Model):
     customer = ForeignKey(Customer, on_delete=CASCADE, related_name="addresses")
-    address = CharField(max_length=500, unique=True)
+    address = CharField(max_length=500)
     mobile = CharField(max_length=20, null=True, blank=True)
 
     def __str__(self):
@@ -66,6 +66,12 @@ class CustomerAddress(Model):
     class Meta:
         db_table = "customer_address"
         verbose_name_plural = "customer_addresses"
+        constraints = [
+            UniqueConstraint(
+                fields=["customer", "address"],
+                name="unique_address_per_customer"
+            )
+        ]
 
 
 class Purchase(Model):
