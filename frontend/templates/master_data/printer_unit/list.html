@@ -127,11 +127,13 @@
                                     class="btn btn-outline-secondary btn-sm">
                                     <i class="bi bi-pencil-fill fs-6"></i>
                                 </a>
+                                {% if request.user.is_superuser %}
                                 <button class="btn btn-outline-dark btn-sm delete-btn" data-id="{{ unit.id }}"
                                     data-model-name="Printer Unit" data-model-url="printer-unit"
                                     data-csrf="{{ csrf_token }}">
                                     <i class="bi bi-trash3-fill fs-6"></i>
                                 </button>
+                                {% endif %} 
                             </div>
                         </td>
                     </tr>

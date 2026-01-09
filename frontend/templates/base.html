@@ -143,6 +143,9 @@
     <script src="{% static 'js/jspdf.umd.min.js' %}"></script>
     <script src="{% static 'js/exceljs.min.js' %}"></script>
     <script src="{% static 'js/FileSaver.min.js' %}"></script>
+    <script>
+        window.IS_SUPERUSER = JSON.parse("{{ user.is_superuser}}".toLowerCase());
+    </script>
     <script src="{% static 'js/base.js' %}"></script>
     <script src="{% static 'js/HTMLTableToExcel.js' %}"></script>
     {% block extra_js %}{% endblock %}

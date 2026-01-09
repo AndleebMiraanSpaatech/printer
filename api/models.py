@@ -159,6 +159,7 @@ class Rental(Model):
     order_date = DateField()
     store = ForeignKey(Store, on_delete=PROTECT, related_name="rentals")
     customer_address = ForeignKey(CustomerAddress, on_delete=PROTECT, related_name="rentals")
+    approved = BooleanField(default=False)
 
     class Meta:
         db_table = "rental"
@@ -168,13 +169,24 @@ class Rental(Model):
         return self.challan_no
 
     def save(self, *args, **kwargs):
-        if self.pk:
-            return super().save(*args, **kwargs)
         with atomic():
-            year = self.challan_date.year
-            last = Rental.objects.select_for_update().filter(challan_date__year=year).order_by('-id').first()
-            seq = int(last.challan_no.split('/')[1]) + 1 if last and last.challan_no else 1
-            self.challan_no = generate_challan(self.customer_address.customer.name,seq,year)
+            if self._state.adding:
+                year = self.challan_date.year
+                last = Rental.objects.select_for_update().filter(challan_date__year=year).order_by('-id').first()
+                seq = int(last.challan_no.split('/')[1]) + 1 if last and last.challan_no else 1
+                self.challan_no = generate_challan(self.customer_address.customer.name, seq, year)
+            else:
+                old = Rental.objects.get(pk=self.pk)
+                if not old.approved and self.approved:
+                    print(self.units.all())
+                    for ru in self.units.all():
+                        locked_unit = PrinterUnit.objects.select_for_update().get(pk=ru.printer_unit.pk)
+                        if locked_unit.status != PrinterUnit.STATUS_INSTORE:
+                            raise ValueError(f"Unit {locked_unit} is not available for rent.")
+                        locked_unit.status = PrinterUnit.STATUS_RENTED
+                        locked_unit.store = None
+                        locked_unit.customer_address = self.customer_address
+                        locked_unit.save(update_fields=["status", "store", "customer_address"])
             super().save(*args, **kwargs)
 
 
@@ -189,19 +201,6 @@ class RentalUnit(Model):
     def __str__(self):
         return f"{self.printer_unit.serial_number} → Rental #{self.rental.challan_no}"
     
-    def save(self, *args, **kwargs):
-        creating = self._state.adding
-        with atomic():
-            if creating:
-                locked_unit = PrinterUnit.objects.select_for_update().get(pk=self.printer_unit.pk)
-                if locked_unit.status != PrinterUnit.STATUS_INSTORE:
-                    raise ValueError("This unit is not available for rent.")
-                locked_unit.status = PrinterUnit.STATUS_RENTED
-                locked_unit.store = None
-                locked_unit.customer_address = self.rental.customer_address
-                locked_unit.save(update_fields=["status","store","customer_address"])
-            super().save(*args, **kwargs)
-
 
 class RentalReturn(Model):
     challan_no = CharField(max_length=100, null=True, blank=True, unique=True)

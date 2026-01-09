@@ -33,13 +33,14 @@
                         <th>Store</th>
                         <th>Customer Name</th>
                         <th>Customer Address</th>
+                        <th>Approved</th>
                         <th>Action</th>
                     </tr>
                 </thead>
 
                 <tbody>
                     {% for rental in objects %}
-                    <tr data-pk="{{ rental.id }}" style="cursor: pointer;">
+                    <tr data-pk="{{ rental.id }}" style="cursor: cell;">
                         <td>{{ forloop.counter|serial_no:page_no }}</td>
                         <td>{{ rental.challan_no}}</td>
                         <td>{{ rental.challan_date|date:"d-m-Y"}}</td>
@@ -48,18 +49,30 @@
                         <td>{{ rental.store.name}}</td>
                         <td>{{ rental.customer_address.customer.name }}</td>
                         <td>{{ rental.customer_address.address }}</td>
+                        <td class="text-center">
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" class="rental-approved-checkbox"
+                                    data-id="{{ rental.id }}"
+                                    {% if rental.approved %}checked disabled{% endif %}
+                                    {% if not request.user.is_superuser %}disabled{% endif %}>
+                                <span class="custom-checkbox"></span>
+                            </label>
+                        </td>
                         <td>
                             <div class="d-flex justify-content-center gap-2">
                                 <!-- Replace your button with a link styled as a button -->
                                 <button class="btn btn-outline-dark btn-sm challan-btn"
                                     data-url="{% url 'frontend:rental_challan_pdf' rental.id %}"
-                                    title="Download Challan">
+                                    title="Download Challan"
+                                    {% if not rental.approved %}disabled{% endif %}>
                                     <i class="bi bi-download"></i>
                                 </button>
+                                {% if request.user.is_superuser %}
                                 <button class="btn btn-outline-dark btn-sm delete-btn" data-id="{{ rental.id }}"
                                     data-model-name="Rental" data-model-url="rental" data-csrf="{{ csrf_token }}">
                                     <i class="bi bi-trash3-fill fs-6"></i>
                                 </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -89,9 +102,32 @@
         const count = Number("{{ count }}");
         pagination(pageNo, count);
 
-        $("table tbody tr").dblclick(function () {
-            const rentalId = $(this).data("pk");
-            window.location.href = `/rental/${rentalId}/`; // adjust later if needed
+        $("table tbody tr").dblclick(function (e) {
+            console.log("Row double-clicked");
+
+            if (!$(e.target).is("button, input")) {
+                const rentalId = $(this).data("pk");
+                window.location.href = `/rental/${rentalId}/`;
+            }
+        });
+
+        $("table").on("change", ".rental-approved-checkbox", function () {
+            $.ajax({
+                type: "PATCH",
+                url: `/api/rental/${this.dataset.id}/`,
+                data: JSON.stringify({ approved: this.checked }),
+                contentType: "application/json",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                success: () => {
+                    if (this.checked) {
+                        this.disabled = true;
+                        $(this).closest("tr").find(".challan-btn").prop("disabled", false);
+                    }
+                },
+                error: () => {
+                    this.checked = false;
+                }
+            });
         });
 
         $(".challan-btn").click(function (e) {

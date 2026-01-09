@@ -1,4 +1,5 @@
 $(function () {
+    
     // ajax form submission
     $(document).on("submit", ".ajax-form", (e) => {
         e.preventDefault();

@@ -50,10 +50,12 @@
                         <td>{{ rental_return.customer_address.address }}</td>
                         <td>
                             <div class="d-flex justify-content-center gap-2">
+                                {% if request.user.is_superuser %}
                                 <button class="btn btn-outline-dark btn-sm delete-btn" data-id="{{ rental_return.id }}"
                                     data-model-name="RentalReturn" data-model-url="rental_return" data-csrf="{{ csrf_token }}">
                                     <i class="bi bi-trash3-fill fs-6"></i>
                                 </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
